@@ -40,6 +40,19 @@ function cli_entrypoint() {
 	# Re-initialize logging, to take into account the new environment after parsing cmdline params.
 	logging_init
 
+	# Choose container engine. Default = docker
+	if [ -z "${CE}" ]; then
+		export CE=docker
+	fi
+
+	if [ "${CE}" == "podman" ]; then
+		# Using podman requires rootful containers
+		export CE_CMD="sudo podman"
+		export CE_VOLUME_OPTS=":z"
+	elif [ "${CE}" == "docker" ]; then
+		export CE_CMD=docker
+	fi
+
 	declare -a -g ARMBIAN_CONFIG_FILES=()                                            # fully validated, complete paths to config files.
 	declare -g ARMBIAN_COMMAND_HANDLER="" ARMBIAN_COMMAND="" ARMBIAN_COMMAND_VARS="" # only valid command and handler will ever be set here.
 	declare -g ARMBIAN_HAS_UNKNOWN_ARG="no"                                          # if any unknown params, bomb.

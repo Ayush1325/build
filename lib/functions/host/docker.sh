@@ -44,13 +44,13 @@ function get_docker_info_once() {
 		declare -g DOCKER_IN_PATH="no"
 
 		# if "docker" is in the PATH...
-		if [[ -n "$(command -v docker)" ]]; then
+		if [[ -n "$(command -v ${CE})" ]]; then
 			display_alert "Docker is in the path" "Docker in PATH" "debug"
 			DOCKER_IN_PATH="yes"
 		fi
 
 		# Shenanigans to go around error control & capture output in the same effort.
-		DOCKER_INFO="$({ docker info 2> /dev/null && echo "DOCKER_INFO_OK"; } || true)"
+		DOCKER_INFO="$({ ${CE} info 2> /dev/null && echo "DOCKER_INFO_OK"; } || true)"
 		declare -g -r DOCKER_INFO="${DOCKER_INFO}" # readonly
 
 		declare -g DOCKER_INFO_OK="no"
@@ -73,7 +73,7 @@ function is_docker_ready_to_go() {
 		display_alert "Can't use Docker" "Actually ALREADY UNDER DOCKER!" "debug"
 		return 1
 	fi
-	if [[ -z "$(command -v docker)" ]]; then
+	if [[ -z "$(command -v ${CE})" ]]; then
 		display_alert "Can't use Docker" "docker command not found" "debug"
 		return 1
 	fi
@@ -322,7 +322,7 @@ function docker_cli_build_dockerfile() {
 
 	if [[ "${do_force_pull}" == "no" ]]; then
 		# Check if the base image is up to date.
-		local_image_sha="$(docker images --no-trunc --quiet "${DOCKER_ARMBIAN_BASE_IMAGE}")"
+		local_image_sha="$(${CE} images --no-trunc --quiet "${DOCKER_ARMBIAN_BASE_IMAGE}")"
 		display_alert "Checking if base image exists at all" "local_image_sha: '${local_image_sha}'" "debug"
 		if [[ -n "${local_image_sha}" ]]; then
 			display_alert "Armbian docker image" "already exists: ${DOCKER_ARMBIAN_BASE_IMAGE}" "info"
@@ -359,7 +359,7 @@ function docker_cli_build_dockerfile() {
 	display_alert "Building" "Dockerfile via '${DOCKER_BUILDX_OR_BUILD[*]}'" "info"
 
 	BUILDKIT_COLORS="run=123,20,245:error=yellow:cancel=blue:warning=white" \
-		run_host_command_logged docker "${DOCKER_BUILDX_OR_BUILD[@]}" -t "${DOCKER_ARMBIAN_INITIAL_IMAGE_TAG}" -f "${SRC}"/Dockerfile "${SRC}"
+		run_host_command_logged ${CE_CMD} "${DOCKER_BUILDX_OR_BUILD[@]}" -t "${DOCKER_ARMBIAN_INITIAL_IMAGE_TAG}" -f "${SRC}"/Dockerfile "${SRC}"
 }
 
 function docker_cli_prepare_launch() {
@@ -495,7 +495,7 @@ function docker_cli_prepare_launch() {
 				# type=volume, without source=, is an anonymous volume -- will be auto cleaned up together with the container;
 				# this could also be a type=tmpfs if you had enough ram - but armbian already does tmpfs for you if you
 				#                                                         have enough RAM (inside the container) so don't bother.
-				DOCKER_ARGS+=("--mount" "type=volume,destination=${DOCKER_ARMBIAN_TARGET_PATH}/${MOUNT_DIR}")
+				DOCKER_ARGS+=("--mount" "type=volume,destination=${DOCKER_ARMBIAN_TARGET_PATH}/${MOUNT_DIR}${CE_VOLUME_OPTS}")
 				;;
 			bind)
 				display_alert "Mounting" "bind mount for '${MOUNT_DIR}'" "debug"
@@ -577,13 +577,13 @@ function docker_cli_launch() {
 	# The amount of privileges and capabilities given is a bare minimum needed for losetup to work
 	if [[ ! -e /dev/loop0 ]]; then
 		display_alert "Running losetup in a temporary container" "because no loop devices exist" "info"
-		run_host_command_logged docker run --rm --privileged --cap-add=MKNOD "${DOCKER_ARMBIAN_INITIAL_IMAGE_TAG}" /usr/sbin/losetup -f
+		run_host_command_logged ${CE_CMD} run --rm --privileged --cap-add=MKNOD "${DOCKER_ARMBIAN_INITIAL_IMAGE_TAG}" /usr/sbin/losetup -f
 	fi
 
 	display_alert "-----------------Relaunching in Docker after ${SECONDS}s------------------" "here comes the 🐳" "info"
 
 	local -i docker_build_result
-	if docker run "${DOCKER_ARGS[@]}" "${DOCKER_ARMBIAN_INITIAL_IMAGE_TAG}" /bin/bash "${DOCKER_ARMBIAN_TARGET_PATH}/compile.sh" "${ARMBIAN_CLI_FINAL_RELAUNCH_ARGS[@]}"; then
+	if ${CE_CMD} run "${DOCKER_ARGS[@]}" "${DOCKER_ARMBIAN_INITIAL_IMAGE_TAG}" /bin/bash "${DOCKER_ARMBIAN_TARGET_PATH}/compile.sh" "${ARMBIAN_CLI_FINAL_RELAUNCH_ARGS[@]}"; then
 		docker_build_result=$? # capture exit code of test done in the line above.
 		display_alert "-------------Docker run finished after ${SECONDS}s------------------------" "🐳 successfull" "info"
 	else
