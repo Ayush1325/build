@@ -495,6 +495,9 @@ function prepare_partitions() {
 		cat $SDCARD/boot/extlinux/extlinux.conf | envsubst '$EXTLINUX_ROOTFS $EXTLINUX_CMDLINE' > "$SDCARD/boot/extlinux/extlinux.conf.temp"
 		mv $SDCARD/boot/extlinux/extlinux.conf.temp $SDCARD/boot/extlinux/extlinux.conf
 
+		echo "Checking extlinux.conf"
+		cat $SDCARD/boot/extlinux/extlinux.conf
+
 		display_alert "extlinux.conf exists" "removing armbianEnv.txt" "info"
 		[[ -f $SDCARD/boot/armbianEnv.txt ]] && run_host_command_logged rm -v $SDCARD/boot/armbianEnv.txt
 	fi
