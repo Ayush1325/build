@@ -490,7 +490,11 @@ function prepare_partitions() {
 
 	# complement extlinux config if it exists; remove armbianEnv in this case.
 	if [[ -f $SDCARD/boot/extlinux/extlinux.conf ]]; then
-		echo "  append root=$rootfs $SRC_CMDLINE $MAIN_CMDLINE" >> $SDCARD/boot/extlinux/extlinux.conf
+		export EXTLINUX_ROOTFS=$rootfs
+		export EXTLINUX_CMDLINE="$SRC_CMDLINE $MAIN_CMDLINE"
+		cat $SDCARD/boot/extlinux/extlinux.conf | envsubst '$EXTLINUX_ROOTFS $EXTLINUX_CMDLINE' > "$SDCARD/boot/extlinux/extlinux.conf.temp"
+		mv $SDCARD/boot/extlinux/extlinux.conf.temp $SDCARD/boot/extlinux/extlinux.conf
+
 		display_alert "extlinux.conf exists" "removing armbianEnv.txt" "info"
 		[[ -f $SDCARD/boot/armbianEnv.txt ]] && run_host_command_logged rm -v $SDCARD/boot/armbianEnv.txt
 	fi

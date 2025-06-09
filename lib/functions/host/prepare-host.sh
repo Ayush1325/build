@@ -278,6 +278,10 @@ function adaptative_prepare_host_dependencies() {
 		host_dependencies+=("lld")
 	fi
 
+	if [[ "$SRC_EXTLINUX" == "yes" ]]; then
+		host_dependencies+=("gettext-base")
+	fi
+
 	declare -g EXTRA_BUILD_DEPS=""
 	call_extension_method "add_host_dependencies" <<- 'ADD_HOST_DEPENDENCIES'
 		*run before installing host dependencies*

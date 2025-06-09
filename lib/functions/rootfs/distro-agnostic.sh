@@ -128,17 +128,27 @@ function install_distribution_agnostic() {
 		else
 			bootpart_prefix=/boot/
 		fi
-		cat <<- EOF > "$SDCARD/boot/extlinux/extlinux.conf"
-			label ${VENDOR}
-			  kernel ${bootpart_prefix}$NAME_KERNEL
-			  initrd ${bootpart_prefix}$NAME_INITRD
-		EOF
+
+		local extlinux_conf_path
+		if [[ -n $EXTLINUX_CONF ]]; then
+			extlinux_conf_path=${SRC}/config/extlinux/${EXTLINUX_CONF}.conf
+		else
+			extlinux_conf_path=${SRC}/config/extlinux/default.conf
+		fi
+
+		export EXTLINUX_VENDOR=$VENDOR
+		export EXTLINUX_KERNEL=${bootpart_prefix}$NAME_KERNEL
+		export EXTLINUX_INITRD=${bootpart_prefix}$NAME_INITRD
+		export EXTLINUX_FDTDIR="DELETE_THIS_LINE"
+		export EXTLINUX_FDT="DELETE_THIS_LINE"
+		export EXTLINUX_FDTOVERLAY="DELETE_THIS_LINE"
+
 		if [[ -n $BOOT_FDT_FILE ]]; then
 			if [[ $BOOT_FDT_FILE != "none" ]]; then
-				echo "  fdt ${bootpart_prefix}dtb/$BOOT_FDT_FILE" >> "$SDCARD/boot/extlinux/extlinux.conf"
+				export EXTLINUX_FDT="${bootpart_prefix}dtb/$BOOT_FDT_FILE"
 			fi
 		else
-			echo "  fdtdir ${bootpart_prefix}dtb/" >> "$SDCARD/boot/extlinux/extlinux.conf"
+			export EXTLINUX_FDTDIR=${bootpart_prefix}dtb/
 		fi
 
 		if [[ -n $DEFAULT_OVERLAYS ]]; then
@@ -146,9 +156,11 @@ function install_distribution_agnostic() {
 			DEFAULT_OVERLAYS_ARR=("${DEFAULT_OVERLAYS_ARR[@]/%/".dtbo"}")
 			DEFAULT_OVERLAYS_ARR=("${DEFAULT_OVERLAYS_ARR[@]/#/"${bootpart_prefix}dtb/${BOOT_FDT_FILE%%/*}/overlay/${OVERLAY_PREFIX}-"}")
 
-			display_alert "Adding to extlinux.conf" "fdtoverlays=${DEFAULT_OVERLAYS_ARR[*]}" "debug"
-			echo "  fdtoverlays ${DEFAULT_OVERLAYS_ARR[*]}" >> "$SDCARD/boot/extlinux/extlinux.conf"
+			export EXTLINUX_FDTOVERLAY="${DEFAULT_OVERLAYS_ARR[*]}"
 		fi
+
+		cat $extlinux_conf_path | envsubst '$EXTLINUX_VENDOR $EXTLINUX_KERNEL $EXTLINUX_INITRD $EXTLINUX_FDTDIR $EXTLINUX_FDTOVERLAY $EXTLINUX_FDT' > "$SDCARD/boot/extlinux/extlinux.conf"
+		sed -i '/DELETE_THIS_LINE/d' $SDCARD/boot/extlinux/extlinux.conf
 
 	else # ... not extlinux ...
 
